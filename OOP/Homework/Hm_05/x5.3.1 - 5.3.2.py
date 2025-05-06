@@ -1,3 +1,9 @@
+class RationalError(ZeroDivisionError):
+    pass
+
+class RationalValueError(ValueError):
+    pass
+
 class Rational:
     def __init__(self, *args):
         if len(args) == 1 and isinstance(args[0], str):
@@ -18,9 +24,11 @@ class Rational:
                 n = args[0].n
                 d = args[0].d
         else:
-            raise ValueError("Value error")
+            raise RationalValueError("Невірні аргументи для Rational")
+
         if d == 0:
-            raise ZeroDivisionError("Zero division")
+            raise RationalError("Знаменник не може бути нулем")
+
         gcd_val = self._gcd(abs(n), abs(d))
         self.n = n // gcd_val
         self.d = d // gcd_val
@@ -37,7 +45,7 @@ class Rational:
         if isinstance(other, int):
             other = Rational(other)
         if not isinstance(other, Rational):
-            return NotImplemented
+            raise RationalValueError("Можна додавати лише Rational або ціле число до Rational")
         new_n = self.n * other.d + other.n * self.d
         new_d = self.d * other.d
         return Rational(new_n, new_d)
@@ -49,7 +57,7 @@ class Rational:
         if isinstance(other, int):
             other = Rational(other)
         if not isinstance(other, Rational):
-            return NotImplemented
+            raise RationalValueError("Можна віднімати лише Rational або ціле число від Rational")
         new_n = self.n * other.d - other.n * self.d
         new_d = self.d * other.d
         return Rational(new_n, new_d)
@@ -58,14 +66,14 @@ class Rational:
         if isinstance(other, int):
             other = Rational(other)
         if not isinstance(other, Rational):
-            return NotImplemented
+            raise RationalValueError("Можна віднімати лише Rational від Rational або цілого числа")
         return other.__sub__(self)
 
     def __mul__(self, other):
         if isinstance(other, int):
             other = Rational(other)
         if not isinstance(other, Rational):
-            return NotImplemented
+            raise RationalValueError("Можна множити лише Rational на Rational або ціле число")
         new_n = self.n * other.n
         new_d = self.d * other.d
         return Rational(new_n, new_d)
@@ -77,9 +85,9 @@ class Rational:
         if isinstance(other, int):
             other = Rational(other)
         if not isinstance(other, Rational):
-            return NotImplemented
+            raise RationalValueError("Можна ділити лише Rational на Rational або ціле число")
         if other.n == 0:
-            raise ZeroDivisionError("Zero division")
+            raise RationalError("Ділення на нульовий Rational")
         new_n = self.n * other.d
         new_d = self.d * other.n
         return Rational(new_n, new_d)
@@ -88,7 +96,7 @@ class Rational:
         if isinstance(other, int):
             other = Rational(other)
         if not isinstance(other, Rational):
-            return NotImplemented
+            raise RationalValueError("Можна ділити лише Rational або ціле число на Rational")
         return other.__truediv__(self)
 
     def __call__(self):
@@ -100,23 +108,23 @@ class Rational:
         elif key == "d":
             return self.d
         else:
-            raise KeyError("Key error")
+            raise KeyError("Невірний ключ")
 
     def __setitem__(self, key, value):
         if not isinstance(value, int):
-            raise ValueError("Value error")
+            raise RationalValueError("Значення має бути цілим числом")
         if key == "n":
             gcd_val = self._gcd(abs(value), abs(self.d))
             self.n = value // gcd_val
             self.d = self.d // gcd_val
         elif key == "d":
             if value == 0:
-                raise ZeroDivisionError("Zero division")
+                raise RationalError("Знаменник не може бути нулем")
             gcd_val = self._gcd(abs(self.n), abs(value))
             self.n = self.n // gcd_val
             self.d = value // gcd_val
         else:
-            raise KeyError("Key error")
+            raise KeyError("Невірний ключ")
         if self.d < 0:
             self.n *= -1
             self.d *= -1
@@ -137,19 +145,21 @@ class RationalList:
                 self.append(item)
 
     def append(self, item):
-        if isinstance(item, (int, Rational)):
-            self.data.append(Rational(item))
-        else:
-            raise TypeError("Type error")
+        try:
+            rational_item = Rational(item) if not isinstance(item, Rational) else item
+            self.data.append(rational_item)
+        except (RationalError, RationalValueError, ValueError) as e:
+            raise RationalValueError(f"Неможливо додати некоректне значення до RationalList: {item}") from e
 
     def __getitem__(self, index):
         return self.data[index]
 
     def __setitem__(self, index, value):
-        if isinstance(value, (int, Rational)):
-            self.data[index] = Rational(value)
-        else:
-            raise TypeError("Type error")
+        try:
+            rational_value = Rational(value) if not isinstance(value, Rational) else value
+            self.data[index] = rational_value
+        except (RationalError, RationalValueError, ValueError) as e:
+            raise RationalValueError(f"Неможливо встановити некоректне значення в RationalList: {value}") from e
 
     def __len__(self):
         return len(self.data)
@@ -164,7 +174,7 @@ class RationalList:
             new_list.append(other)
             return new_list
         else:
-            return NotImplemented
+            raise RationalValueError("Можна додавати лише RationalList, Rational або ціле число")
 
     def __radd__(self, other):
         if isinstance(other, (int, Rational)):
@@ -172,7 +182,7 @@ class RationalList:
             new_list.data.extend(self.data)
             return new_list
         else:
-            return NotImplemented
+            raise RationalValueError("Можна додавати лише Rational або ціле число до RationalList")
 
     def __iadd__(self, other):
         if isinstance(other, RationalList):
@@ -180,7 +190,7 @@ class RationalList:
         elif isinstance(other, (int, Rational)):
             self.append(other)
         else:
-            return NotImplemented
+            raise RationalValueError("Можна додавати лише RationalList, Rational або ціле число")
         return self
 
     def __str__(self):
@@ -199,20 +209,23 @@ def evaluate_expression(expr):
     while i < len(tokens):
         token = tokens[i]
         if token in ('+', '-', '*', '/'):
-            right = Rational(tokens[i + 1])
-            if token == '+':
-                result += right
-            elif token == '-':
-                result -= right
-            elif token == '*':
-                result *= right
-            elif token == '/':
-                result /= right
-            i += 2
+            try:
+                right = Rational(tokens[i + 1])
+                if token == '+':
+                    result += right
+                elif token == '-':
+                    result -= right
+                elif token == '*':
+                    result *= right
+                elif token == '/':
+                    result /= right
+                i += 2
+            except (RationalError, RationalValueError) as e:
+                print(f"Помилка при обчисленні виразу '{expr}': {e}")
+                return None
         else:
             i += 1
     return result
-
 
 def process_file(filename):
     results = []
@@ -222,9 +235,10 @@ def process_file(filename):
             if line:
                 try:
                     result = evaluate_expression(line)
-                    results.append(result)
+                    if result is not None:
+                        results.append(result)
                 except Exception as e:
-                    print(f"Error, can not do that :( '{line}': {e}")
+                    print(f"Помилка, не вдалося обробити рядок '{line}': {e}")
     return results
 
 def sum_rational_list(numbers):
@@ -233,19 +247,42 @@ def sum_rational_list(numbers):
         total += num
     return total
 
-input_file = "input01.txt"
-results = process_file(input_file)
-print("Результати:")
-for res in results:
-    print(res)
+if __name__ == "__main__":
+    try:
+        r = Rational(1, 0)
+    except RationalError as e:
+        print(f"Спіймано RationalError: {e}")
 
-numbers_file = "numbers.txt"
-rational_list = RationalList()
-with open(numbers_file, 'r') as f:
-    for line in f:
-        tokens = line.split()
-        for token in tokens:
-            rational_list.append(Rational(token))
+    try:
+        r = Rational("1/2")
+        r2 = Rational("3/4")
+        result = r + "abc"
+    except RationalValueError as e:
+        print(f"Спіймано RationalValueError: {e}")
 
-total_sum = sum_rational_list(rational_list)
-print(f"\nСума чисел: {total_sum}")
+    try:
+        r_list = RationalList()
+        r_list.append("1/2")
+        r_list.append("abc")
+    except RationalValueError as e:
+        print(f"Спіймано RationalValueError у RationalList: {e}")
+
+    input_file = "input01.txt"
+    results = process_file(input_file)
+    print("\nРезультати обчислення виразів:")
+    for res in results:
+        print(res)
+
+    numbers_file = "numbers.txt"
+    rational_list = RationalList()
+    try:
+        with open(numbers_file, 'r') as f:
+            for line in f:
+                tokens = line.split()
+                for token in tokens:
+                    rational_list.append(Rational(token))
+    except (RationalError, RationalValueError) as e:
+        print(f"Помилка при читанні файлу {numbers_file}: {e}")
+
+    total_sum = sum_rational_list(rational_list)
+    print(f"\nСума чисел: {total_sum}")
